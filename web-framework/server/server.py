@@ -218,6 +218,9 @@ def receive_message():
 
 
 if __name__ == "__main__":
+    if len(argv) != 2:
+        print("Usage: python server.py <port>")
+        exit()
     if not exists('db.sqlite'):
         db.create_all()
     app.run(host="0.0.0.0", port=int(argv[1]), debug=True)
