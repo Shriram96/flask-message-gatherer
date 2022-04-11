@@ -18,6 +18,7 @@ db = SQLAlchemy(app)
 FILE_PATH = "messages.csv"
 FILE_LOCK = Lock()
 
+
 class UserState(IntEnum):
     GROUNDED = 0
     IDENTIFIED = 1

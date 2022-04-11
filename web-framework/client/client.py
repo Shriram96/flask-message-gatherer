@@ -5,6 +5,7 @@ from sys import argv
 
 TOKENS: dict = {}
 
+
 def print_help(server: str):
     print("Connected to the Server:", server)
     print("Options:")
@@ -14,6 +15,7 @@ def print_help(server: str):
     print("\t4. Switch User")
     print("\t5. View Help")
     print("\t6. Exit")
+
 
 def identify(server: str, username: str):
     endpoint: str = server + "/identify"
@@ -30,6 +32,7 @@ def identify(server: str, username: str):
 
     TOKENS[username] = response.json()['token']
     print(response.json()['status_message'])
+
 
 def authenticate(server: str, username: str):
     endpoint: str = server + "/authenticate"
@@ -49,6 +52,7 @@ def authenticate(server: str, username: str):
     response = request("POST", endpoint, headers=headers, data=payload)
 
     print(response.json()['status_message'])
+
 
 def send_message(server: str, username: str):
     endpoint: str = server + "/message"
@@ -78,6 +82,7 @@ def send_message(server: str, username: str):
 
         message = input(">>> Message: ")
 
+
 def main(server: str):
     print_help(server=server)
 
@@ -99,6 +104,7 @@ def main(server: str):
             return
 
         option = int(input(">>>" + " ({})".format(username) + " Enter Option [1-5]: "))
+
 
 if __name__ == "__main__":
     if len(argv) != 2:
