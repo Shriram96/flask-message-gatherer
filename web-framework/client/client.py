@@ -69,6 +69,7 @@ def send_message(server: str, username: str):
 
     if username not in TOKENS.keys():
         print("Identify first!")
+        return
 
     message = input(">>> Message: ")
     status: HTTPStatus.value = HTTPStatus.CREATED.value
