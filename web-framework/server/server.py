@@ -1,4 +1,5 @@
 from enum import IntEnum
+from http import HTTPStatus
 import secrets
 
 from matplotlib import use
@@ -60,34 +61,47 @@ def identify():
     current_ip      = request.remote_addr
 
     status_message  = ""
+    status: HTTPStatus = HTTPStatus.OK
 
-    if message_type is None or message_type != "IDENTIFY":
-        abort(400)
-    
-    if username is None:
-        abort(400)
-    
-    user: User = User.query.filter_by(username=username).first()
-    if user is None:
-        try:
-            user = User(username=username, state=UserState.IDENTIFIED, last_endpoint=current_ip)
-        except Exception as e:
-            return jsonify({"status_message": str(e), "status_code": 200})
+    while True:
 
-        status_message = "New User Identified"
-    else:
-        user.last_endpoint = current_ip
-        user.state = UserState.IDENTIFIED
+        if message_type is None or message_type != "IDENTIFY":
+            status = HTTPStatus.BAD_REQUEST
+            status_message = "Invalid or missing 'message_type'"
+            break
+        
+        if username is None:
+            status = HTTPStatus.BAD_REQUEST
+            status_message = "Missing 'username'"
+            break
+        
+        user: User = User.query.filter_by(username=username).first()
+        if user is None:
+            try:
+                user = User(username=username, state=UserState.IDENTIFIED, last_endpoint=current_ip)
+            except Exception as e:
+                status = HTTPStatus.SERVICE_UNAVAILABLE
+                status_message = "Unable to create new user"
+                break
+
+            status_message = "New User Created"
+        else:
+            user.last_endpoint  = current_ip
+            user.state          = UserState.IDENTIFIED
+            status_message      = "Existing User Identified"
+
         db.session.add(user)
         db.session.commit()
-        status_message = "Existing User Identified"
-
-    db.session.add(user)
-    db.session.commit()
+        break
     
-    token = user.generate_auth_token(600)
-    
-    return jsonify({'token': token, "status_message": status_message, "status_code": 200})
+    return jsonify(
+        {
+            "token": user.generate_auth_token(600), 
+            "status_message": status_message, 
+            "status_code": status.value, 
+            "status_description": status.description
+        }
+    )
 
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
@@ -95,26 +109,45 @@ def authenticate():
     token           = request.json.get('token')
     current_ip      = request.remote_addr
 
-    status_message  = ""
+    status_message      = ""
+    status: HTTPStatus  = HTTPStatus.OK
 
-    if message_type is None or message_type != "AUTHENTICATE":
-        abort(400)
+    while True:
+        if message_type is None or message_type != "AUTHENTICATE":
+            status          = HTTPStatus.BAD_REQUEST
+            status_message  = "Invalid or missing 'message_type'"
+            break
 
-    user: User = User.verify_auth_token(token=token)
-    if not user:
-        return jsonify({"status_message": "Token Expired. Please identify!", "status_code": 200})
+        if token is None:
+            status = HTTPStatus.BAD_REQUEST
+            status_message = "Missing 'token'"
+            break
 
-    if user.gate_keeper(current_ip, UserState.IDENTIFIED | UserState.AUTHENTICATED):
-        user.state      = UserState.AUTHENTICATED
-        status_message  = "Authentication Successful!"
-    else:
-        user.state      = UserState.GROUNDED
-        status_message  = "Please identify!"
+        user: User = User.verify_auth_token(token=token)
+        if not user:
+            status          = HTTPStatus.UNAUTHORIZED
+            status_message  = "Token Expired. Please identify"
+            break
 
-    db.session.add(user)
-    db.session.commit()
+        if user.gate_keeper(current_ip, UserState.IDENTIFIED | UserState.AUTHENTICATED):
+            user.state      = UserState.AUTHENTICATED
+            status          = HTTPStatus.ACCEPTED
+            status_message  = "Authentication Successful!"
+        else:
+            user.state      = UserState.GROUNDED
+            status_message  = "Please identify!"
+
+        db.session.add(user)
+        db.session.commit()
+        break
     
-    return jsonify({"status_message": status_message, "status_code": 200})
+    return jsonify(
+        {
+            "status_message": status_message, 
+            "status_code": status.value, 
+            "status_description": status.description
+        }
+    )
 
 @app.route('/message', methods=['POST'])
 def receive_message():
@@ -123,28 +156,53 @@ def receive_message():
     message         = request.json.get('message')
     current_ip      = request.remote_addr
 
-    if message_type is None or message_type != "MESSAGE":
-        abort(400)
-    
-    if message is None:
-        abort(400)
+    status_message  = ""
+    status: HTTPStatus = HTTPStatus.OK
 
-    user: User = User.verify_auth_token(token=token)
-    if not user:
-        return jsonify({"status_message": "Token Expired. Please identify!", "status_code": 200})
+    while True:
+        if message_type is None or message_type != "MESSAGE":
+            status          = HTTPStatus.BAD_REQUEST
+            status_message  = "Invalid or missing 'message_type'"
+            break
 
-    if user.gate_keeper(current_ip, UserState.AUTHENTICATED):
-        if message == "" or message == "logout":
-            message     = "logout"
-            user.state  = UserState.GROUNDED
-        write_to_file(username=user.username, timestamp=str(time.time()), message=message)
-    else:
-        return jsonify({"status_message": "Please identify and authenticate first", "status_code": 200})
-    
-    db.session.add(user)
-    db.session.commit()
+        if token is None:
+            status = HTTPStatus.BAD_REQUEST
+            status_message = "Missing 'token'"
+            break
+        
+        if message is None:
+            status = HTTPStatus.BAD_REQUEST
+            status_message = "Missing 'message'"
+            break
 
-    return jsonify({"status_message": "Message Received", "status_code": 200})
+        user: User = User.verify_auth_token(token=token)
+        if not user:
+            status          = HTTPStatus.UNAUTHORIZED
+            status_message  = "Token Expired. Please identify"
+            break
+
+        if user.gate_keeper(current_ip, UserState.AUTHENTICATED):
+            if message == "" or message == "logout":
+                message     = "logout"
+                user.state  = UserState.GROUNDED
+            write_to_file(username=user.username, timestamp=str(time.time()), message=message)
+            status          = HTTPStatus.CREATED
+            status_message  = "Message Received"
+        else:
+            user.state      = UserState.GROUNDED
+            status_message  = "Please identify!"
+        
+        db.session.add(user)
+        db.session.commit()
+        break
+
+    return jsonify(
+        {
+            "status_message": status_message, 
+            "status_code": status.value, 
+            "status_description": status.description
+        }
+    )
 
 if __name__ == "__main__":
     if not os.path.exists('db.sqlite'):
