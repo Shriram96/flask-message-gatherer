@@ -167,6 +167,7 @@ def authenticate():
                 status_message = "Existing User password authenticated. Your token has been generated, {}!".format(user.username)
             else:
                 status = HTTPStatus.FORBIDDEN
+                user.state = UserState.IDENTIFIED
                 status_message = "Authentication Failed!. Please try again, {}!".format(user.username)
                 break
 
