@@ -62,7 +62,7 @@ class User(db.Model):
             return None
 
         if type(token) == bytes:
-            token.decode('ascii')
+            token = token.decode('ascii')
         elif type(token) != str:
             token = ""
         return token
