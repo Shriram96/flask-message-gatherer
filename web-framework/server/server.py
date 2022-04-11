@@ -224,4 +224,10 @@ if __name__ == "__main__":
         exit()
     if not exists('db.sqlite'):
         db.create_all()
-    app.run(host="0.0.0.0", port=int(argv[1]), debug=True)
+    portStr = argv[1]
+    port = 6174
+    if portStr.isnumeric():
+        port = int(portStr)
+    else:
+        print("Port is not numeric. Running on default port 6174")
+    app.run(host="0.0.0.0", port=port, debug=True)
