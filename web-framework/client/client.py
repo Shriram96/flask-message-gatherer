@@ -1,3 +1,4 @@
+from enum import IntEnum
 from http import HTTPStatus
 from json import dumps
 from requests import request
@@ -5,6 +6,13 @@ from sys import argv
 
 TOKENS: dict = {}
 
+class USER_OPTIONS(IntEnum):
+    IDENTIFY = 1
+    AUTHENTICATE = 2
+    MESSAGE = 3
+    CHANGE_NAME = 4
+    HELP = 5
+    EXIT = 6
 
 def print_help(server: str):
     print("Connected to the Server:", server)
@@ -88,22 +96,33 @@ def main(server: str):
 
     username = input(">>> Enter Username: ")
 
-    option = int(input(">>>" + " ({})".format(username) + " Enter Option [1-5]: "))
-    while option < 6:
-        if option == 1:
+    optionStr = input(">>>" + " ({})".format(username) + " Enter Option [1-5]: ")
+    if optionStr.isnumeric():
+        option = int(optionStr)
+    else:
+        print("Option should be an integer. Please look at the help doc")
+        option = 5
+    
+    while option < USER_OPTIONS.EXIT:
+        if option == USER_OPTIONS.IDENTIFY:
             identify(server=server, username=username)
-        elif option == 2:
+        elif option == USER_OPTIONS.AUTHENTICATE:
             authenticate(server=server, username=username)
-        elif option == 3:
+        elif option == USER_OPTIONS.MESSAGE:
             send_message(server=server, username=username)
-        elif option == 4:
+        elif option == USER_OPTIONS.CHANGE_NAME:
             username = input(">>> Enter Username: ")
-        elif option == 5:
+        elif option == USER_OPTIONS.HELP:
             print_help(server=server)
         else:
             return
 
-        option = int(input(">>>" + " ({})".format(username) + " Enter Option [1-5]: "))
+        optionStr = input(">>>" + " ({})".format(username) + " Enter Option [1-5]: ")
+        if optionStr.isnumeric():
+            option = int(optionStr)
+        else:
+            print("Option should be an integer. Please look at the help doc")
+            option = 5
 
 
 if __name__ == "__main__":
