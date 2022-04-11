@@ -138,7 +138,7 @@ def authenticate():
         if user.gate_keeper(current_ip, UserState.IDENTIFIED | UserState.AUTHENTICATED):
             user.state = UserState.AUTHENTICATED
             status = HTTPStatus.ACCEPTED
-            status_message = "Authentication Successful!"
+            status_message = "Authentication Successful. You may message now, {}!".format(user.username)
         else:
             user.state = UserState.GROUNDED
             status = HTTPStatus.FORBIDDEN
@@ -193,9 +193,12 @@ def receive_message():
             if message == "" or message == "logout":
                 message = "logout"
                 user.state = UserState.GROUNDED
+                status = HTTPStatus.ACCEPTED
+                status_message = "Empty or logout Message Received from {}".format(user.username)
+            else:
+                status = HTTPStatus.CREATED
+                status_message = "Message Received from {}".format(user.username)
             write_to_file(username=user.username, timestamp=str(time()), message=message)
-            status = HTTPStatus.CREATED
-            status_message = "Message Received"
         else:
             user.state = UserState.GROUNDED
             status = HTTPStatus.FORBIDDEN
