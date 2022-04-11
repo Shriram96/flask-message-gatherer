@@ -1,17 +1,15 @@
 from enum import IntEnum
-from http import HTTPStatus
-import secrets
-
-from flask import Flask, request, render_template, redirect, url_for, jsonify, abort
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
-import sys
-import socket
-import os
-import time
-import jwt
+from http import HTTPStatus
+from jwt import decode, encode
+from os.path import exists
+from secrets import token_urlsafe
+from sys import argv
+from time import time
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
+app.config['SECRET_KEY'] = token_urlsafe(16)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite'
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 db = SQLAlchemy(app)
@@ -39,12 +37,12 @@ class User(db.Model):
         return bool(endpoint_check and user_state_check)
 
     def generate_auth_token(self, expires_in=600):
-        return jwt.encode({'id': self.id, 'exp': time.time() + expires_in}, app.config['SECRET_KEY'], algorithm='HS256')
+        return encode({'id': self.id, 'exp': time() + expires_in}, app.config['SECRET_KEY'], algorithm='HS256')
 
     @staticmethod
     def verify_auth_token(token):
         try:
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            data = decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
         except Exception as e:
             print("JWT Decoding Exception", str(e))
             return None
@@ -87,11 +85,12 @@ def identify():
                 status = HTTPStatus.SERVICE_UNAVAILABLE
                 status_message = "Unable to create new user"
                 break
-
+            status = HTTPStatus.CREATED
             status_message = "New User Created"
         else:
             user.last_endpoint = current_ip
             user.state = UserState.IDENTIFIED
+            status = HTTPStatus.ACCEPTED
             status_message = "Existing User Identified"
 
         db.session.add(user)
@@ -140,6 +139,7 @@ def authenticate():
             status_message = "Authentication Successful!"
         else:
             user.state = UserState.GROUNDED
+            status = HTTPStatus.FORBIDDEN
             status_message = "Please identify!"
 
         db.session.add(user)
@@ -191,11 +191,12 @@ def receive_message():
             if message == "" or message == "logout":
                 message = "logout"
                 user.state = UserState.GROUNDED
-            write_to_file(username=user.username, timestamp=str(time.time()), message=message)
+            write_to_file(username=user.username, timestamp=str(time()), message=message)
             status = HTTPStatus.CREATED
             status_message = "Message Received"
         else:
             user.state = UserState.GROUNDED
+            status = HTTPStatus.FORBIDDEN
             status_message = "Please identify!"
 
         db.session.add(user)
@@ -212,6 +213,6 @@ def receive_message():
 
 
 if __name__ == "__main__":
-    if not os.path.exists('db.sqlite'):
+    if not exists('db.sqlite'):
         db.create_all()
-    app.run(host=socket.gethostbyname(socket.gethostname()), port=int(sys.argv[1]), debug=True)
+    app.run(host="0.0.0.0", port=int(argv[1]), debug=True)
