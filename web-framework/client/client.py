@@ -112,7 +112,7 @@ def main(server: str):
 
     username = input(">>> Enter Username: ")
 
-    optionStr = input(">>>" + " ({})".format(username) + " Enter Option [1-5]: ")
+    optionStr = input(">>>" + " ({})".format(username) + " Enter Option [1-7]: ")
     if optionStr.isnumeric():
         option = int(optionStr)
     else:
@@ -135,7 +135,7 @@ def main(server: str):
         else:
             return
 
-        optionStr = input(">>>" + " ({})".format(username) + " Enter Option [1-5]: ")
+        optionStr = input(">>>" + " ({})".format(username) + " Enter Option [1-7]: ")
         if optionStr.isnumeric():
             option = int(optionStr)
         else:
