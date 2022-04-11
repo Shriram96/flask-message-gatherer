@@ -12,7 +12,8 @@ class USER_OPTIONS(IntEnum):
     MESSAGE = 3
     CHANGE_NAME = 4
     HELP = 5
-    EXIT = 6
+    CHANGE_SERVER = 6
+    EXIT = 7
 
 def print_help(server: str):
     print("Connected to the Server:", server)
@@ -22,7 +23,8 @@ def print_help(server: str):
     print("\t3. Send Message to Server")
     print("\t4. Switch User")
     print("\t5. View Help")
-    print("\t6. Exit")
+    print("\t6. Switch Server")
+    print("\t7. Exit")
 
 
 def identify(server: str, username: str):
@@ -36,7 +38,11 @@ def identify(server: str, username: str):
         "Content-Type": "application/json"
     }
 
-    response = request("POST", endpoint, headers=headers, data=payload)
+    try:
+        response = request("POST", endpoint, headers=headers, data=payload)
+    except Exception as e:
+        print("Caught Exception while sending IDENTIFY request. Check the server. Exception: ", str(e))
+        return
 
     print(response.json()['status_message'])
 
@@ -55,7 +61,11 @@ def authenticate(server: str, username: str):
         "Content-Type": "application/json"
     }
 
-    response = request("POST", endpoint, headers=headers, data=payload)
+    try:
+        response = request("POST", endpoint, headers=headers, data=payload)
+    except Exception as e:
+        print("Caught Exception while sending AUTHENTICATE request. Check the server. Exception: ", str(e))
+        return
 
     token = response.json()['token']
     if token != "":
@@ -71,8 +81,7 @@ def send_message(server: str, username: str):
         print("Identify first!")
         return
 
-    message = input(">>> Message: ")
-    status: HTTPStatus.value = HTTPStatus.CREATED.value
+    message = input(">>> Message ('exit' to Exit): ")
 
     while message != "exit":
         payload = dumps({
@@ -84,7 +93,11 @@ def send_message(server: str, username: str):
             "Content-Type": "application/json"
         }
 
-        response = request("POST", endpoint, headers=headers, data=payload)
+        try:
+            response = request("POST", endpoint, headers=headers, data=payload)
+        except Exception as e:
+            print("Caught Exception while sending MESSAGE request. Check the server. Exception: ", str(e))
+            return
 
         print(response.json()['status_message'])
 
@@ -117,6 +130,8 @@ def main(server: str):
             username = input(">>> Enter Username: ")
         elif option == USER_OPTIONS.HELP:
             print_help(server=server)
+        elif option == USER_OPTIONS.CHANGE_SERVER:
+            server = input(">>> New Server: ")
         else:
             return
 
