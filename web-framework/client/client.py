@@ -38,26 +38,28 @@ def identify(server: str, username: str):
 
     response = request("POST", endpoint, headers=headers, data=payload)
 
-    TOKENS[username] = response.json()['token']
     print(response.json()['status_message'])
 
 
 def authenticate(server: str, username: str):
     endpoint: str = server + "/authenticate"
 
-    if username not in TOKENS.keys():
-        print("Identify first!")
-        return
+    password = input(">>> Password: ")
 
     payload = dumps({
         "message_type": "AUTHENTICATE",
-        "token": TOKENS[username]
+        "username": username,
+        "password": password
     })
     headers = {
         "Content-Type": "application/json"
     }
 
     response = request("POST", endpoint, headers=headers, data=payload)
+
+    token = response.json()['token']
+    if token != "":
+        TOKENS[username] = response.json()['token']
 
     print(response.json()['status_message'])
 
