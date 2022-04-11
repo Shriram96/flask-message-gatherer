@@ -54,7 +54,18 @@ class User(db.Model):
             return False
 
     def generate_auth_token(self, expires_in=600):
-        return encode({'id': self.id, 'exp': time() + expires_in}, app.config['SECRET_KEY'], algorithm='HS256')
+        token = ""
+        try:
+            token = encode({'id': self.id, 'exp': time() + expires_in}, app.config['SECRET_KEY'], algorithm='HS256')
+        except Exception as e:
+            print("JWT Encoding Exception", str(e))
+            return None
+
+        if type(token) == bytes:
+            token.decode('ascii')
+        elif type(token) != str:
+            token = ""
+        return token
 
     @staticmethod
     def verify_auth_token(token):
@@ -167,17 +178,21 @@ def authenticate():
                 status_message = "Existing User password authenticated. Your token has been generated, {}!".format(user.username)
             else:
                 status = HTTPStatus.FORBIDDEN
-                user.state = UserState.IDENTIFIED
                 status_message = "Authentication Failed!. Please try again, {}!".format(user.username)
                 break
 
             token = user.generate_auth_token(600)
-            user.state = UserState.AUTHENTICATED
+            if token == "" or token == None:
+                user.state = UserState.GROUNDED
+                status = HTTPStatus.INTERNAL_SERVER_ERROR
+                status_message = "Token Generation Failed!. Please try again, {}!".format(user.username)
+            else:
+                user.state = UserState.AUTHENTICATED
         else:
             user.state = UserState.GROUNDED
             status = HTTPStatus.FORBIDDEN
             status_message = "Please identify!"
-
+        
         db.session.add(user)
         db.session.commit()
         break
