@@ -1,6 +1,7 @@
 from enum import IntEnum
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
+from hashlib import pbkdf2_hmac
 from http import HTTPStatus
 from jwt import decode, encode
 from threading import Lock
@@ -29,6 +30,7 @@ class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(32), index=True, unique=True)
+    password_hash = db.Column(db.String(128), default=None)
     state = db.Column(db.Integer, default=UserState.GROUNDED)
     last_endpoint = db.Column(db.String(16), default=None)
 
@@ -37,6 +39,18 @@ class User(db.Model):
         user_state_check = (self.state & state)
 
         return bool(endpoint_check and user_state_check)
+
+    def hash_password(self, username: str, password: str) -> None:
+        salt = username.encode('utf-8')
+        self.password_hash = pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000, dklen=128)
+
+    def verify_password(self, username:str, password: str) -> bool:
+        salt = username.encode('utf-8')
+        password_hash = pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000, dklen=128)
+        if password_hash == self.password_hash:
+            return True
+        else:
+            return False
 
     def generate_auth_token(self, expires_in=600):
         return encode({'id': self.id, 'exp': time() + expires_in}, app.config['SECRET_KEY'], algorithm='HS256')
@@ -102,7 +116,6 @@ def identify():
 
     return jsonify(
         {
-            "token": user.generate_auth_token(600),
             "status_message": status_message,
             "status_code": status.value,
             "status_description": status.description
@@ -113,9 +126,11 @@ def identify():
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
     message_type = request.json.get('message_type')
-    token = request.json.get('token')
+    username = request.json.get('username')
+    password = request.json.get('password')
     current_ip = request.remote_addr
 
+    token = ""
     status_message = ""
     status: HTTPStatus = HTTPStatus.OK
 
@@ -125,21 +140,37 @@ def authenticate():
             status_message = "Invalid or missing 'message_type'"
             break
 
-        if token is None:
+        if username is None:
             status = HTTPStatus.BAD_REQUEST
-            status_message = "Missing 'token'"
+            status_message = "Missing 'username'"
             break
 
-        user: User = User.verify_auth_token(token=token)
+        if password is None:
+            status = HTTPStatus.BAD_REQUEST
+            status_message = "Missing 'password'"
+            break
+
+        user: User = User.query.filter_by(username=username).first()
         if not user:
             status = HTTPStatus.UNAUTHORIZED
-            status_message = "Token Expired. Please identify"
+            status_message = "User not found. Please identify"
             break
 
         if user.gate_keeper(current_ip, UserState.IDENTIFIED | UserState.AUTHENTICATED):
+            if user.password_hash == None:
+                user.hash_password(username=username, password=password)
+                status = HTTPStatus.CREATED
+                status_message = "New User password authenticated. Your token has been generated, {}!".format(user.username)
+            elif user.verify_password(username=username, password=password):
+                status = HTTPStatus.ACCEPTED
+                status_message = "Existing User password authenticated. Your token has been generated, {}!".format(user.username)
+            else:
+                status = HTTPStatus.FORBIDDEN
+                status_message = "Authentication Failed!. Please try again, {}!".format(user.username)
+                break
+
+            token = user.generate_auth_token(600)
             user.state = UserState.AUTHENTICATED
-            status = HTTPStatus.ACCEPTED
-            status_message = "Authentication Successful. You may message now, {}!".format(user.username)
         else:
             user.state = UserState.GROUNDED
             status = HTTPStatus.FORBIDDEN
@@ -151,6 +182,7 @@ def authenticate():
 
     return jsonify(
         {
+            "token": token,
             "status_message": status_message,
             "status_code": status.value,
             "status_description": status.description
