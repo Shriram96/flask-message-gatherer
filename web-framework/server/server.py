@@ -3,6 +3,7 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from http import HTTPStatus
 from jwt import decode, encode
+from threading import Lock
 from os.path import exists
 from secrets import token_urlsafe
 from sys import argv
@@ -15,7 +16,7 @@ app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 db = SQLAlchemy(app)
 
 FILE_PATH = "messages.csv"
-
+FILE_LOCK = Lock()
 
 class UserState(IntEnum):
     GROUNDED = 0
@@ -50,10 +51,11 @@ class User(db.Model):
 
 
 def write_to_file(username: str, timestamp: str, message: str) -> None:
-    file = open(FILE_PATH, "a")
+    with FILE_LOCK:
+        file = open(FILE_PATH, "a")
 
-    file.write(timestamp + ", " + username + ", " + message + "\n")
-    file.close()
+        file.write(timestamp + ", " + username + ", " + message + "\n")
+        file.close()
 
 
 @app.route('/identify', methods=['POST'])
