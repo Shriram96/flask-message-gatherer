@@ -45,7 +45,7 @@ class User(db.Model):
         salt = username.encode('utf-8')
         self.password_hash = pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000, dklen=128)
 
-    def verify_password(self, username:str, password: str) -> bool:
+    def verify_password(self, username: str, password: str) -> bool:
         salt = username.encode('utf-8')
         password_hash = pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000, dklen=128)
         if password_hash == self.password_hash:
@@ -112,7 +112,7 @@ def identify():
                 user = User(username=username, state=UserState.IDENTIFIED, last_endpoint=current_ip)
             except Exception as e:
                 status = HTTPStatus.SERVICE_UNAVAILABLE
-                status_message = "Unable to create new user"
+                status_message = "Unable to create new user" + str(e)
                 break
             status = HTTPStatus.CREATED
             status_message = "New User Created"
@@ -169,20 +169,20 @@ def authenticate():
             break
 
         if user.gate_keeper(current_ip, UserState.IDENTIFIED | UserState.AUTHENTICATED):
-            if user.password_hash == None:
+            if user.password_hash is None:
                 user.hash_password(username=username, password=password)
                 status = HTTPStatus.CREATED
-                status_message = "New User password authenticated. Your token has been generated, {}!".format(user.username)
+                status_message = "New User password authenticated. Token generated, {}!".format(user.username)
             elif user.verify_password(username=username, password=password):
                 status = HTTPStatus.ACCEPTED
-                status_message = "Existing User password authenticated. Your token has been generated, {}!".format(user.username)
+                status_message = "Existing User password authenticated. Token generated, {}!".format(user.username)
             else:
                 status = HTTPStatus.FORBIDDEN
                 status_message = "Authentication Failed!. Please try again, {}!".format(user.username)
                 break
 
             token = user.generate_auth_token(600)
-            if token == "" or token == None:
+            if token == "" or token is None:
                 user.state = UserState.GROUNDED
                 status = HTTPStatus.INTERNAL_SERVER_ERROR
                 status_message = "Token Generation Failed!. Please try again, {}!".format(user.username)
@@ -192,7 +192,7 @@ def authenticate():
             user.state = UserState.GROUNDED
             status = HTTPStatus.FORBIDDEN
             status_message = "Please identify!"
-        
+
         db.session.add(user)
         db.session.commit()
         break
