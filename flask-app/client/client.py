@@ -6,7 +6,8 @@ from sys import argv
 
 TOKENS: dict = {}
 
-class USER_OPTIONS(IntEnum):
+
+class UserOptions(IntEnum):
     IDENTIFY = 1
     AUTHENTICATE = 2
     MESSAGE = 3
@@ -14,6 +15,7 @@ class USER_OPTIONS(IntEnum):
     HELP = 5
     CHANGE_SERVER = 6
     EXIT = 7
+
 
 def print_help(server: str):
     print("Connected to the Server:", server)
@@ -112,32 +114,32 @@ def main(server: str):
 
     username = input(">>> Enter Username: ")
 
-    optionStr = input(">>>" + " ({})".format(username) + " Enter Option [1-7]: ")
-    if optionStr.isnumeric():
-        option = int(optionStr)
+    option_str = input(">>>" + " ({})".format(username) + " Enter Option [1-7]: ")
+    if option_str.isnumeric():
+        option = int(option_str)
     else:
         print("Option should be an integer. Please look at the help doc")
         option = 5
-    
-    while option < USER_OPTIONS.EXIT:
-        if option == USER_OPTIONS.IDENTIFY:
+
+    while option < UserOptions.EXIT:
+        if option == UserOptions.IDENTIFY:
             identify(server=server, username=username)
-        elif option == USER_OPTIONS.AUTHENTICATE:
+        elif option == UserOptions.AUTHENTICATE:
             authenticate(server=server, username=username)
-        elif option == USER_OPTIONS.MESSAGE:
+        elif option == UserOptions.MESSAGE:
             send_message(server=server, username=username)
-        elif option == USER_OPTIONS.CHANGE_NAME:
+        elif option == UserOptions.CHANGE_NAME:
             username = input(">>> Enter Username: ")
-        elif option == USER_OPTIONS.HELP:
+        elif option == UserOptions.HELP:
             print_help(server=server)
-        elif option == USER_OPTIONS.CHANGE_SERVER:
+        elif option == UserOptions.CHANGE_SERVER:
             server = input(">>> New Server: ")
         else:
             return
 
-        optionStr = input(">>>" + " ({})".format(username) + " Enter Option [1-7]: ")
-        if optionStr.isnumeric():
-            option = int(optionStr)
+        option_str = input(">>>" + " ({})".format(username) + " Enter Option [1-7]: ")
+        if option_str.isnumeric():
+            option = int(option_str)
         else:
             print("Option should be an integer. Please look at the help doc")
             option = 5
